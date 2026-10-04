@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="A photo growth diary for your plant or pet.">
+  <meta name="theme-color" content="#2F7D4A">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Sprout &amp; Paw">
+  <title>Sprout &amp; Paw</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-512.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="none">
+
+  <!-- Icons (used with <use href="#i-name">) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-leaf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20c0-9 5.5-14.5 15-15.5C19 14 13.5 19.5 5 20z"/><path d="M5 20l8.5-8.5"/></symbol>
+      <symbol id="i-paw" viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="10.5" r="2"/><circle cx="9.2" cy="6.2" r="2.1"/><circle cx="14.8" cy="6.2" r="2.1"/><circle cx="18.5" cy="10.5" r="2"/><path d="M12 11.5c-3.1 0-6.2 3.6-6.2 6.4 0 1.7 1.3 2.4 2.9 2.4 1.3 0 2.1-.6 3.3-.6s2 .6 3.3.6c1.6 0 2.9-.7 2.9-2.4 0-2.8-3.1-6.4-6.2-6.4z"/></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-5-5-8 9"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></symbol>
+      <symbol id="i-next" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></symbol>
+      <symbol id="i-sort" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16l-3-3M8 20l3-3M16 20V4l-3 3M16 4l3 3"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- Screen 1: choose plant or animal -->
+  <section class="choose" id="chooseScreen" hidden>
+    <header class="choose-head">
+      <h1>Sprout &amp; Paw</h1>
+      <p>A photo growth diary. What are you watching grow?</p>
+    </header>
+    <button class="choice choice-plant" type="button" data-cat="plant">
+      <svg class="choice-art" aria-hidden="true"><use href="#i-leaf"/></svg>
+      <span class="choice-title">Plant</span>
+      <span class="choice-meta" id="meta-plant">Start a new diary</span>
+    </button>
+    <button class="choice choice-animal" type="button" data-cat="animal">
+      <svg class="choice-art" aria-hidden="true"><use href="#i-paw"/></svg>
+      <span class="choice-title">Animal</span>
+      <span class="choice-meta" id="meta-animal">Start a new diary</span>
+    </button>
+  </section>
+
+  <!-- Screen 2: the diary -->
+  <section class="diary" id="diaryScreen" hidden>
+    <header class="bar">
+      <button class="icon-btn" id="switchBtn" type="button" aria-label="Switch between plant and animal">
+        <svg class="icon"><use href="#i-back"/></svg>
+      </button>
+      <button class="bar-title" id="titleBtn" type="button" aria-label="Rename this diary">
+        <svg class="icon bar-mark"><use id="titleIcon" href="#i-leaf"/></svg>
+        <span id="diaryTitle">My plant</span>
+        <svg class="icon icon-sm"><use href="#i-edit"/></svg>
+      </button>
+      <button class="sort-btn" id="sortBtn" type="button">
+        <svg class="icon icon-sm"><use href="#i-sort"/></svg>
+        <span id="sortLabel">Newest</span>
+      </button>
+    </header>
+
+    <p class="summary" id="summary"></p>
+    <div class="timeline" id="timeline"></div>
+
+    <div class="empty" id="emptyState" hidden>
+      <svg class="empty-art" aria-hidden="true"><use id="emptyIcon" href="#i-leaf"/></svg>
+      <p class="empty-title">Day 1 starts with a photo</p>
+      <p>Take or choose a photo. Today's date is added for you, and you can change it.</p>
+    </div>
+
+    <button class="fab" id="addBtn" type="button">
+      <svg class="icon"><use href="#i-camera"/></svg>
+      Add photo
+    </button>
+  </section>
+
+  <!-- Photo source picker -->
+  <div class="overlay" id="pickSheet" hidden>
+    <div class="sheet sheet-pick" role="dialog" aria-modal="true" aria-label="Add a photo">
+      <button class="pick-btn" id="pickCamera" type="button">
+        <svg class="icon"><use href="#i-camera"/></svg> Take photo
+      </button>
+      <button class="pick-btn" id="pickGallery" type="button">
+        <svg class="icon"><use href="#i-image"/></svg> Choose from gallery
+      </button>
+      <button class="pick-cancel" id="pickCancel" type="button">Cancel</button>
+    </div>
+  </div>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+  <input type="file" id="galleryInput" accept="image/*" multiple hidden>
+
+  <!-- Add / edit a day -->
+  <div class="overlay" id="entrySheet" hidden>
+    <form class="sheet" id="entryForm" role="dialog" aria-modal="true" aria-labelledby="entryTitle" novalidate>
+      <div class="sheet-head">
+        <h2 id="entryTitle">New photos</h2>
+        <button class="icon-btn" id="entryClose" type="button" aria-label="Close">
+          <svg class="icon"><use href="#i-close"/></svg>
+        </button>
+      </div>
+
+      <label class="field">
+        <span class="field-label">Date</span>
+        <input type="date" id="entryDate" required>
+      </label>
+      <p class="field-hint" id="dateHint"></p>
+
+      <div class="field">
+        <span class="field-label">Photos <span class="slot-count" id="slotCount">0 of 3</span></span>
+        <div class="slots" id="slots"></div>
+      </div>
+
+      <label class="field">
+        <span class="field-label">Description</span>
+        <textarea id="entryNote" rows="3" maxlength="1000"></textarea>
+      </label>
+
+      <p class="sheet-error" id="entryError" role="alert"></p>
+
+      <div class="sheet-actions">
+        <button class="btn-danger" id="entryDelete" type="button" hidden>Delete day</button>
+        <button class="btn-primary" id="entrySave" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Full-screen photo viewer -->
+  <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Photo viewer">
+    <button class="viewer-close icon-btn" id="viewerClose" type="button" aria-label="Close photo">
+      <svg class="icon"><use href="#i-close"/></svg>
+    </button>
+    <img id="viewerImg" alt="">
+    <button class="viewer-nav viewer-prev icon-btn" id="viewerPrev" type="button" aria-label="Previous photo">
+      <svg class="icon"><use href="#i-back"/></svg>
+    </button>
+    <button class="viewer-nav viewer-next icon-btn" id="viewerNext" type="button" aria-label="Next photo">
+      <svg class="icon"><use href="#i-next"/></svg>
+    </button>
+    <div class="viewer-cap">
+      <p class="viewer-date"><span id="viewerDate"></span><span id="viewerCount"></span></p>
+      <p class="viewer-note" id="viewerNote"></p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="db.js"></script>
+  <script src="photo.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
