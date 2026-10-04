@@ -7,8 +7,8 @@
   const SETTINGS_KEY = 'sproutpaw:settings';
 
   const CATS = {
-    plant:  { word: 'plant', defaultName: 'My plant', icon: '#i-leaf', note: 'New leaf today, watered in the morning' },
-    animal: { word: 'pet',   defaultName: 'My pet',   icon: '#i-paw',  note: 'Weighed 3.2 kg, learned a new trick' }
+    plant:  { word: 'plant', plural: 'plants', defaultName: 'My plant', icon: '#i-leaf', note: 'New leaf today, watered in the morning' },
+    animal: { word: 'pet',   plural: 'pets',   defaultName: 'My pet',   icon: '#i-paw',  note: 'Weighed 3.2 kg, learned a new trick' }
   };
 
   const $ = id => document.getElementById(id);
@@ -16,7 +16,7 @@
   // ----- Settings (small things kept in localStorage) -----
   const settings = loadSettings();
   function loadSettings() {
-    const base = { category: null, newestFirst: true, names: {} };
+    const base = { category: null, diaryId: null, newestFirst: true, names: {} };
     try { return Object.assign(base, JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}); }
     catch (e) { return base; }
   }
@@ -24,6 +24,8 @@
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* ignore */ }
   }
 
+  let diaries = [];             // every plant and pet
+  let diary = null;             // the open diary
   let entries = [];             // days for the open diary
   const thumbCache = new Map(); // photoId -> Promise<object URL>
   let sheet = null;             // add/edit form state
@@ -47,7 +49,9 @@
   const plural = (n, word) => n + ' ' + word + (n === 1 ? '' : 's');
   const formatSize = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  const entryId = (cat, date) => cat + ':' + date;
+  const entryId = (diaryId, date) => diaryId + ':' + date;
+  const diariesIn = cat => diaries.filter(d => d.category === cat)
+    .sort((a, b) => a.created - b.created);
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -83,53 +87,189 @@
   }
 
   // ===== Screens =====
+  function showScreen(id) {
+    ['chooseScreen', 'listScreen', 'diaryScreen'].forEach(x => { $(x).hidden = x !== id; });
+    $('toast').hidden = true;
+    window.scrollTo(0, 0);
+  }
+
+  async function loadDiaries() {
+    try { diaries = await DB.getDiaries(); }
+    catch (e) {
+      diaries = [];
+      toast('Storage is blocked in this browser, so photos can’t be saved.', 5000);
+    }
+  }
+
+  // Screen 1: plant or animal
   async function showChoose() {
     settings.category = null;
+    settings.diaryId = null;
     saveSettings();
+    diary = null;
     document.body.dataset.theme = 'none';
-    $('diaryScreen').hidden = true;
-    $('chooseScreen').hidden = false;
+    showScreen('chooseScreen');
     setThemeColor();
-    try {
-      const all = await DB.getEntries();
-      ['plant', 'animal'].forEach(cat => {
-        const n = all.filter(e => e.category === cat).length;
-        const name = settings.names[cat];
-        $('meta-' + cat).textContent = n
-          ? (name ? name + ', ' : '') + plural(n, 'day') + ' logged'
-          : 'Start a new diary';
-      });
-    } catch (e) { /* storage unavailable: cards still work */ }
+    await loadDiaries();
+    ['plant', 'animal'].forEach(cat => {
+      const n = diariesIn(cat).length;
+      $('meta-' + cat).textContent = n ? plural(n, CATS[cat].word) : 'Start a new diary';
+    });
   }
 
-  async function openDiary(cat) {
+  // Screen 2: the list of plants or pets
+  async function showList(cat) {
     settings.category = cat;
+    settings.diaryId = null;
     saveSettings();
+    diary = null;
     document.body.dataset.theme = cat;
-    $('chooseScreen').hidden = true;
-    $('diaryScreen').hidden = false;
-    $('titleIcon').setAttribute('href', CATS[cat].icon);
-    $('emptyIcon').setAttribute('href', CATS[cat].icon);
-    $('entryNote').placeholder = CATS[cat].note;
-    updateTitle();
+    const c = CATS[cat];
+    $('listTitle').textContent = 'Your ' + c.plural;
+    $('listIcon').setAttribute('href', c.icon);
+    $('listEmptyIcon').setAttribute('href', c.icon);
+    $('listEmptyTitle').textContent = 'No ' + c.plural + ' yet';
+    $('newDiaryLabel').textContent = 'Add a ' + c.word;
+    showScreen('listScreen');
     setThemeColor();
-    window.scrollTo(0, 0);
-    await refresh();
+    await loadDiaries();
+    await renderList();
   }
 
-  function updateTitle() {
+  async function renderList() {
     const cat = settings.category;
-    $('diaryTitle').textContent = settings.names[cat] || CATS[cat].defaultName;
+    const mine = diariesIn(cat);
+    let allEntries = [];
+    try { allEntries = await DB.getEntries(); } catch (e) { /* shown as empty */ }
+
+    const box = $('diaryList');
+    box.textContent = '';
+    $('listEmpty').hidden = mine.length > 0;
+    const covers = [];
+
+    mine.forEach(d => {
+      const days = allEntries.filter(e => e.diaryId === d.id).sort((a, b) => (a.date < b.date ? 1 : -1));
+      const photos = days.reduce((n, e) => n + e.photoIds.length, 0);
+
+      const card = el('button', 'diary-card');
+      card.type = 'button';
+      const cover = el('span', 'diary-cover');
+      if (days.length && days[0].photoIds.length) {
+        const img = el('img');
+        img.alt = '';
+        const pid = days[0].photoIds[0];
+        covers.push(pid);
+        thumbUrl(pid).then(u => { if (u) img.src = u; });
+        cover.appendChild(img);
+      } else {
+        cover.appendChild(icon(CATS[cat].icon.slice(3)));
+      }
+      const info = el('span', 'diary-info');
+      info.append(
+        el('span', 'diary-name', d.name),
+        el('span', 'diary-meta', days.length
+          ? plural(photos, 'photo') + ' across ' + plural(days.length, 'day') + '. Last: ' + formatDate(days[0].date)
+          : 'No photos yet')
+      );
+      card.append(cover, info, icon('next'));
+      card.addEventListener('click', () => openDiary(d));
+      box.appendChild(card);
+    });
+    cleanupThumbs(covers);
+  }
+
+  async function addDiary() {
+    const cat = settings.category;
+    const c = CATS[cat];
+    const n = diariesIn(cat).length;
+    const suggested = n === 0 ? c.defaultName : '';
+    const name = prompt('Name your new ' + c.word + ':', suggested);
+    if (name === null) return;
+    const d = {
+      id: uid(),
+      category: cat,
+      name: name.trim().slice(0, 40) || (c.word.charAt(0).toUpperCase() + c.word.slice(1) + ' ' + (n + 1)),
+      created: Date.now()
+    };
+    try { await DB.write({ putDiaries: [d] }); }
+    catch (e) { toast('Couldn’t create the diary. Please try again.'); return; }
+    diaries.push(d);
+    openDiary(d);
+  }
+
+  // Screen 3: one diary
+  async function openDiary(d) {
+    diary = d;
+    settings.category = d.category;
+    settings.diaryId = d.id;
+    saveSettings();
+    document.body.dataset.theme = d.category;
+    const c = CATS[d.category];
+    $('titleIcon').setAttribute('href', c.icon);
+    $('emptyIcon').setAttribute('href', c.icon);
+    $('entryNote').placeholder = c.note;
+    $('diaryTitle').textContent = d.name;
+    showScreen('diaryScreen');
+    setThemeColor();
+    await refresh();
   }
 
   async function refresh() {
     try {
-      entries = await DB.getEntries(settings.category);
+      entries = (await DB.getEntries()).filter(e => e.diaryId === diary.id);
     } catch (e) {
       entries = [];
       toast('Storage is blocked in this browser, so photos can’t be saved.', 5000);
     }
     renderTimeline();
+  }
+
+  async function renameDiary() {
+    const c = CATS[diary.category];
+    const name = prompt('Rename your ' + c.word + ':', diary.name);
+    if (name === null || !name.trim()) return;
+    const updated = Object.assign({}, diary, { name: name.trim().slice(0, 40) });
+    try { await DB.write({ putDiaries: [updated] }); }
+    catch (e) { toast('Couldn’t rename. Please try again.'); return; }
+    Object.assign(diary, updated);
+    $('diaryTitle').textContent = diary.name;
+  }
+
+  async function deleteDiary() {
+    const photoIds = [];
+    entries.forEach(e => photoIds.push(...e.photoIds));
+    const what = photoIds.length ? ' and all ' + plural(photoIds.length, 'photo') : '';
+    if (!confirm('Delete “' + diary.name + '”' + what + '? This can’t be undone.')) return;
+    try {
+      await DB.write({ deleteDiaryIds: [diary.id], deleteEntryIds: entries.map(e => e.id), deletePhotoIds: photoIds });
+    } catch (e) {
+      toast('Couldn’t delete. Please try again.');
+      return;
+    }
+    const name = diary.name;
+    await showList(diary.category);
+    toast('Deleted ' + name);
+  }
+
+  // Older versions had one diary per category. Move those days into a named diary.
+  async function migrateOldData() {
+    let all;
+    try { all = await DB.getEntries(); } catch (e) { return; }
+    const old = all.filter(e => !e.diaryId);
+    if (!old.length) return;
+
+    const change = { putDiaries: [], putEntries: [], deleteEntryIds: [] };
+    ['plant', 'animal'].forEach(cat => {
+      const days = old.filter(e => e.category === cat);
+      if (!days.length) return;
+      const d = { id: uid(), category: cat, name: settings.names[cat] || CATS[cat].defaultName, created: Date.now() };
+      change.putDiaries.push(d);
+      days.forEach(e => {
+        change.deleteEntryIds.push(e.id);
+        change.putEntries.push(Object.assign({}, e, { id: entryId(d.id, e.date), diaryId: d.id }));
+      });
+    });
+    try { await DB.write(change); } catch (e) { /* try again next time */ }
   }
 
   // ===== Timeline =====
@@ -150,8 +290,9 @@
     $('sortLabel').textContent = settings.newestFirst ? 'Newest' : 'Oldest';
     $('sortBtn').setAttribute('aria-label', settings.newestFirst ? 'Showing newest first. Tap for oldest first.' : 'Showing oldest first. Tap for newest first.');
 
+    $('deleteDiaryBtn').hidden = false;
     sorted.forEach(entry => tl.appendChild(dayCard(entry, daysBetween(firstDate, entry.date) + 1)));
-    cleanupThumbs();
+    cleanupThumbs(entries.flatMap(e => e.photoIds));
   }
 
   function dayCard(entry, dayNum) {
@@ -196,9 +337,8 @@
   }
 
   // Free memory for photos no longer shown
-  function cleanupThumbs() {
-    const live = new Set();
-    entries.forEach(e => e.photoIds.forEach(id => live.add(id)));
+  function cleanupThumbs(shownIds) {
+    const live = new Set(shownIds);
     thumbCache.forEach((p, id) => {
       if (!live.has(id)) {
         thumbCache.delete(id);
@@ -384,23 +524,23 @@
     e.preventDefault();
     if ($('entrySave').disabled) return;
 
-    const cat = settings.category;
     const date = $('entryDate').value;
-    const id = entryId(cat, date);
+    const id = entryId(diary.id, date);
     const entry = {
       id,
-      category: cat,
+      diaryId: diary.id,
+      category: diary.category,
       date,
       note: $('entryNote').value.trim(),
       photoIds: keptExisting().concat(sheet.added.map(p => p.id)),
       updated: Date.now()
     };
     const change = {
-      putEntry: entry,
+      putEntries: [entry],
       putPhotos: sheet.added.map(p => ({ id: p.id, full: p.full, thumb: p.thumb })),
       deletePhotoIds: Array.from(sheet.removed)
     };
-    if (sheet.mode === 'edit' && sheet.base.id !== id) change.deleteEntryId = sheet.base.id;
+    if (sheet.mode === 'edit' && sheet.base.id !== id) change.deleteEntryIds = [sheet.base.id];
 
     $('entrySave').disabled = true;
     try {
@@ -435,7 +575,7 @@
     const base = sheet.base;
     if (!confirm('Delete ' + formatDate(base.date) + ' and its photos? This can’t be undone.')) return;
     try {
-      await DB.write({ deleteEntryId: base.id, deletePhotoIds: base.photoIds });
+      await DB.write({ deleteEntryIds: [base.id], deletePhotoIds: base.photoIds });
     } catch (e) {
       toast('Couldn’t delete. Please try again.');
       return;
@@ -496,19 +636,13 @@
 
   // ===== Events =====
   document.querySelectorAll('.choice').forEach(btn => {
-    btn.addEventListener('click', () => openDiary(btn.dataset.cat));
+    btn.addEventListener('click', () => showList(btn.dataset.cat));
   });
-  $('switchBtn').addEventListener('click', showChoose);
-
-  $('titleBtn').addEventListener('click', () => {
-    const cat = settings.category;
-    const current = settings.names[cat] || '';
-    const name = prompt('Name your ' + CATS[cat].word + ':', current || CATS[cat].defaultName);
-    if (name === null) return;
-    settings.names[cat] = name.trim().slice(0, 40);
-    saveSettings();
-    updateTitle();
-  });
+  $('listBack').addEventListener('click', showChoose);
+  $('newDiaryBtn').addEventListener('click', addDiary);
+  $('switchBtn').addEventListener('click', () => showList(diary.category));
+  $('titleBtn').addEventListener('click', renameDiary);
+  $('deleteDiaryBtn').addEventListener('click', deleteDiary);
 
   $('sortBtn').addEventListener('click', () => {
     settings.newestFirst = !settings.newestFirst;
@@ -558,9 +692,15 @@
     }
   });
 
-  // ===== Start =====
-  if (settings.category && CATS[settings.category]) openDiary(settings.category);
-  else showChoose();
+  // ===== Start: reopen where the user left off =====
+  (async function start() {
+    await migrateOldData();
+    await loadDiaries();
+    const last = diaries.find(d => d.id === settings.diaryId);
+    if (last) openDiary(last);
+    else if (CATS[settings.category]) showList(settings.category);
+    else showChoose();
+  })();
 
   // Offline support (works on https:// or localhost)
   if ('serviceWorker' in navigator && window.isSecureContext) {

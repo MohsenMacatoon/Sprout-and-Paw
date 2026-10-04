@@ -50,10 +50,36 @@
     </button>
   </section>
 
-  <!-- Screen 2: the diary -->
+  <!-- Screen 2: list of plants or pets -->
+  <section class="list" id="listScreen" hidden>
+    <header class="bar">
+      <button class="icon-btn" id="listBack" type="button" aria-label="Back to plant or animal">
+        <svg class="icon"><use href="#i-back"/></svg>
+      </button>
+      <h1 class="bar-heading">
+        <svg class="icon bar-mark"><use id="listIcon" href="#i-leaf"/></svg>
+        <span id="listTitle">Your plants</span>
+      </h1>
+    </header>
+
+    <div class="diary-list" id="diaryList"></div>
+
+    <div class="empty" id="listEmpty" hidden>
+      <svg class="empty-art" aria-hidden="true"><use id="listEmptyIcon" href="#i-leaf"/></svg>
+      <p class="empty-title" id="listEmptyTitle">No plants yet</p>
+      <p>Add one to start its growth diary. You can add as many as you like.</p>
+    </div>
+
+    <button class="fab" id="newDiaryBtn" type="button">
+      <svg class="icon"><use href="#i-plus"/></svg>
+      <span id="newDiaryLabel">Add a plant</span>
+    </button>
+  </section>
+
+  <!-- Screen 3: one diary -->
   <section class="diary" id="diaryScreen" hidden>
     <header class="bar">
-      <button class="icon-btn" id="switchBtn" type="button" aria-label="Switch between plant and animal">
+      <button class="icon-btn" id="switchBtn" type="button" aria-label="Back to the list">
         <svg class="icon"><use href="#i-back"/></svg>
       </button>
       <button class="bar-title" id="titleBtn" type="button" aria-label="Rename this diary">
@@ -75,6 +101,8 @@
       <p class="empty-title">Day 1 starts with a photo</p>
       <p>Take or choose a photo. Today's date is added for you, and you can change it.</p>
     </div>
+
+    <button class="delete-diary" id="deleteDiaryBtn" type="button">Delete this diary</button>
 
     <button class="fab" id="addBtn" type="button">
       <svg class="icon"><use href="#i-camera"/></svg>

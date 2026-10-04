@@ -1,14 +1,15 @@
 /* ===== Sprout & Paw: storage =====
-   Saves diary days and photos on the phone using IndexedDB
+   Saves diaries, days, and photos on the phone using IndexedDB
    (localStorage is too small for photos). Nothing is uploaded anywhere.
 
-   entries store: { id: "plant:2026-10-04", category, date, note, photoIds: [...] }
+   diaries store: { id, category: "plant" | "animal", name, created }
+   entries store: { id: "<diaryId>:2026-10-04", diaryId, category, date, note, photoIds: [...] }
    photos store:  { id, thumb: Blob, full: Blob } */
 (function (global) {
   'use strict';
 
   const DB_NAME = 'sprout-and-paw';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2; // v2 added the diaries store
   let dbPromise = null;
 
   function open() {
@@ -17,8 +18,9 @@
       const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = () => {
         const db = req.result;
-        if (!db.objectStoreNames.contains('entries')) db.createObjectStore('entries', { keyPath: 'id' });
-        if (!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath: 'id' });
+        ['diaries', 'entries', 'photos'].forEach(name => {
+          if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' });
+        });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -33,12 +35,13 @@
     });
   }
 
-  // All days, or only one category's days
-  async function getEntries(category) {
+  async function getAll(store) {
     const db = await open();
-    const all = await done(db.transaction('entries').objectStore('entries').getAll());
-    return category ? all.filter(e => e.category === category) : all;
+    return done(db.transaction(store).objectStore(store).getAll());
   }
+
+  const getDiaries = () => getAll('diaries');
+  const getEntries = () => getAll('entries');
 
   async function getPhoto(id) {
     const db = await open();
@@ -46,18 +49,20 @@
   }
 
   // One safe write: everything succeeds together or nothing changes.
-  // { putEntry, deleteEntryId, putPhotos: [], deletePhotoIds: [] }
+  // { putDiaries, deleteDiaryIds, putEntries, deleteEntryIds, putPhotos, deletePhotoIds }
+  // Deletes run before puts, so an entry can be moved to a new id.
   async function write(change) {
     const db = await open();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(['entries', 'photos'], 'readwrite');
-      const entries = tx.objectStore('entries');
-      const photos = tx.objectStore('photos');
+      const tx = db.transaction(['diaries', 'entries', 'photos'], 'readwrite');
+      const s = { diaries: tx.objectStore('diaries'), entries: tx.objectStore('entries'), photos: tx.objectStore('photos') };
 
-      (change.putPhotos || []).forEach(p => photos.put(p));
-      (change.deletePhotoIds || []).forEach(id => photos.delete(id));
-      if (change.deleteEntryId) entries.delete(change.deleteEntryId);
-      if (change.putEntry) entries.put(change.putEntry);
+      (change.deleteDiaryIds || []).forEach(id => s.diaries.delete(id));
+      (change.deleteEntryIds || []).forEach(id => s.entries.delete(id));
+      (change.deletePhotoIds || []).forEach(id => s.photos.delete(id));
+      (change.putDiaries || []).forEach(d => s.diaries.put(d));
+      (change.putEntries || []).forEach(e => s.entries.put(e));
+      (change.putPhotos || []).forEach(p => s.photos.put(p));
 
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -65,5 +70,5 @@
     });
   }
 
-  global.DB = { getEntries, getPhoto, write };
+  global.DB = { getDiaries, getEntries, getPhoto, write };
 })(window);

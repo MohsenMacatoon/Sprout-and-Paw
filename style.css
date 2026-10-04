@@ -138,7 +138,8 @@ button { cursor: pointer; }
 .choice-title { position: relative; font-size: 2.2rem; font-weight: 800; line-height: 1.1; }
 .choice-meta  { position: relative; margin-top: 4px; font-size: 1rem; opacity: .9; }
 
-/* ===== Diary screen ===== */
+/* ===== List + diary screens ===== */
+.list,
 .diary {
   max-width: 560px;
   margin: 0 auto;
@@ -162,17 +163,17 @@ button { cursor: pointer; }
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border: 0;
   background: none;
-  padding: 6px 4px;
-  font-size: 1.3rem;
+  padding: 6px 2px;
+  font-size: 1.15rem;
   font-weight: 800;
   text-align: left;
 }
 .bar-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar-title .icon-sm { color: var(--muted); }
-.bar-mark { color: var(--primary); width: 1.4em; height: 1.4em; }
+.bar-mark { color: var(--primary); width: 1.35em; height: 1.35em; }
 
 .sort-btn {
   flex: none;
@@ -180,7 +181,7 @@ button { cursor: pointer; }
   align-items: center;
   gap: 6px;
   height: 36px;
-  padding: 0 12px;
+  padding: 0 10px;
   border: 1.5px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
@@ -190,6 +191,70 @@ button { cursor: pointer; }
 
 .summary { margin: 2px 4px 14px; color: var(--muted); font-size: .9rem; }
 .summary:empty { display: none; }
+
+/* List of plants or pets */
+.bar-heading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 2px;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.diary-list { display: grid; gap: 12px; margin-top: 6px; }
+
+.diary-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: left;
+  transition: transform .12s;
+}
+.diary-card:active { transform: scale(.98); }
+
+.diary-cover {
+  flex: none;
+  width: 76px; height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--soft);
+  color: var(--primary);
+}
+.diary-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.diary-cover .icon { width: 2em; height: 2em; }
+
+.diary-info { min-width: 0; flex: 1; }
+.diary-name {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diary-meta { display: block; margin-top: 2px; color: var(--muted); font-size: .88rem; }
+.diary-card > .icon { color: var(--muted); }
+
+.delete-diary {
+  display: block;
+  margin: 28px auto 0;
+  padding: 10px 16px;
+  border: 0;
+  background: none;
+  color: #C8343A;
+  font-weight: 600;
+  font-size: .9rem;
+}
 
 /* Timeline: a stem running down the left side */
 .timeline { position: relative; padding-left: 24px; }
@@ -287,6 +352,7 @@ button { cursor: pointer; }
   color: var(--primary-ink);
   font-size: 1.1rem;
   font-weight: 800;
+  white-space: nowrap;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
   transition: transform .12s;
 }
