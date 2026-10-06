@@ -81,6 +81,45 @@
 
   function lockScroll(on) { document.body.classList.toggle('no-scroll', on); }
 
+  // ----- In-app pop-up (instead of the browser's prompt/confirm) -----
+  // input: true shows a text box. Resolves with the text (or true), or null if cancelled.
+  function showDialog(o) {
+    return new Promise(resolve => {
+      const box = $('dialog'), form = $('dialogForm'), inp = $('dialogInput');
+      const okBtn = $('dialogOk'), cancelBtn = $('dialogCancel');
+      $('dialogTitle').textContent = o.title;
+      $('dialogText').textContent = o.text || '';
+      inp.hidden = !o.input;
+      inp.value = o.value || '';
+      inp.placeholder = o.placeholder || '';
+      okBtn.textContent = o.ok || 'OK';
+      okBtn.classList.toggle('is-danger', !!o.danger);
+      box.hidden = false;
+      lockScroll(true);
+      setTimeout(() => { if (o.input) { inp.focus(); inp.select(); } else okBtn.focus(); }, 60);
+
+      const finish = value => {
+        box.hidden = true;
+        if (!sheet && $('pickSheet').hidden && !viewer) lockScroll(false);
+        form.removeEventListener('submit', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        box.removeEventListener('click', onBackdrop);
+        document.removeEventListener('keydown', onKey, true);
+        resolve(value);
+      };
+      const onOk = e => { e.preventDefault(); finish(o.input ? inp.value : true); };
+      const onCancel = () => finish(null);
+      const onBackdrop = e => { if (e.target === box) finish(null); };
+      const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); finish(null); } };
+      form.addEventListener('submit', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      box.addEventListener('click', onBackdrop);
+      document.addEventListener('keydown', onKey, true);
+    });
+  }
+  const askText = o => showDialog(Object.assign({}, o, { input: true }));
+  const askConfirm = o => showDialog(o).then(v => v !== null);
+
   function setThemeColor() {
     const c = getComputedStyle(document.body).getPropertyValue('--primary').trim();
     document.querySelector('meta[name="theme-color"]').setAttribute('content', c || '#2F7D4A');
@@ -183,7 +222,7 @@
     const c = CATS[cat];
     const n = diariesIn(cat).length;
     const suggested = n === 0 ? c.defaultName : '';
-    const name = prompt('Name your new ' + c.word + ':', suggested);
+    const name = await askText({ title: 'Name your new ' + c.word, value: suggested, placeholder: c.defaultName, ok: 'Create' });
     if (name === null) return;
     const d = {
       id: uid(),
@@ -226,7 +265,7 @@
 
   async function renameDiary() {
     const c = CATS[diary.category];
-    const name = prompt('Rename your ' + c.word + ':', diary.name);
+    const name = await askText({ title: 'Rename your ' + c.word, value: diary.name, ok: 'Save' });
     if (name === null || !name.trim()) return;
     const updated = Object.assign({}, diary, { name: name.trim().slice(0, 40) });
     try { await DB.write({ putDiaries: [updated] }); }
@@ -239,7 +278,7 @@
     const photoIds = [];
     entries.forEach(e => photoIds.push(...e.photoIds));
     const what = photoIds.length ? ' and all ' + plural(photoIds.length, 'photo') : '';
-    if (!confirm('Delete “' + diary.name + '”' + what + '? This can’t be undone.')) return;
+    if (!(await askConfirm({ title: 'Delete “' + diary.name + '”?', text: 'This deletes the diary' + what + '. It can’t be undone.', ok: 'Delete', danger: true }))) return;
     try {
       await DB.write({ deleteDiaryIds: [diary.id], deleteEntryIds: entries.map(e => e.id), deletePhotoIds: photoIds });
     } catch (e) {
@@ -561,10 +600,11 @@
     toast(wasEdit ? 'Changes saved' : 'Saved to ' + formatDate(date));
   }
 
-  function closeSheet(force) {
+  async function closeSheet(force) {
     if (!sheet) return;
     if (!force && !sheet.saved && sheet.added.length &&
-        !confirm('Discard ' + plural(sheet.added.length, 'new photo') + '?')) return;
+        !(await askConfirm({ title: 'Discard ' + plural(sheet.added.length, 'new photo') + '?', text: 'They haven’t been saved yet.', ok: 'Discard', danger: true }))) return;
+    if (!sheet) return;
     if (!sheet.saved) sheet.added.forEach(p => URL.revokeObjectURL(p.url));
     sheet = null;
     $('entrySheet').hidden = true;
@@ -573,7 +613,7 @@
 
   async function deleteDay() {
     const base = sheet.base;
-    if (!confirm('Delete ' + formatDate(base.date) + ' and its photos? This can’t be undone.')) return;
+    if (!(await askConfirm({ title: 'Delete ' + formatDate(base.date) + '?', text: 'This deletes the day and its photos. It can’t be undone.', ok: 'Delete', danger: true }))) return;
     try {
       await DB.write({ deleteEntryIds: [base.id], deletePhotoIds: base.photoIds });
     } catch (e) {

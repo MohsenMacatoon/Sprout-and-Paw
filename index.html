@@ -178,6 +178,20 @@
     </div>
   </div>
 
+  <!-- In-app pop-up for naming and confirming (replaces the browser's own,
+       which always shows the website address) -->
+  <div class="overlay overlay-center" id="dialog" hidden>
+    <form class="dialog" id="dialogForm" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" novalidate>
+      <h2 class="dialog-title" id="dialogTitle"></h2>
+      <p class="dialog-text" id="dialogText"></p>
+      <input class="dialog-input" type="text" id="dialogInput" maxlength="40" autocomplete="off" aria-labelledby="dialogTitle">
+      <div class="dialog-actions">
+        <button class="btn-ghost" type="button" id="dialogCancel">Cancel</button>
+        <button class="btn-primary" type="submit" id="dialogOk">OK</button>
+      </div>
+    </form>
+  </div>
+
   <div class="toast" id="toast" role="status" hidden></div>
 
   <script src="db.js"></script>

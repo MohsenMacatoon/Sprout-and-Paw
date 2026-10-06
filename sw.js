@@ -3,7 +3,7 @@
    (Your photos are stored separately and are never affected by this.)
    IMPORTANT: after editing any file, change the version below (v1 -> v2)
    so phones download the new files. */
-const CACHE = 'sprout-paw-v2';
+const CACHE = 'sprout-paw-v3';
 
 const FILES = [
   './',
